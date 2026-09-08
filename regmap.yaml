@@ -1,0 +1,29 @@
+ip: aclint
+contract: { aw: 16, dw: 32 }
+base: 0x02000000
+size: 0x10000
+params: [harts]
+
+regs:
+  - name: msip
+    offset: 0x0000
+    desc: machine software interrupt pending, one per hart
+    array: { count: harts, stride: 4 }
+    fields:
+      - { name: val, bits: "0:0", sw: rw, hw: r, reset: 0 }
+
+  - name: mtimecmp
+    offset: 0x4000
+    desc: machine timer compare, 64 bits, one per hart
+    array: { count: harts, stride: 8 }
+    width: 64
+    fields:
+      - { name: val, width: 64, sw: rw, hw: r, reset: 0 }
+
+  - name: mtime
+    offset: 0xBFF8
+    desc: machine time counter, 64 bits, shared
+    width: 64
+    atomic: latch-on-low
+    fields:
+      - { name: val, width: 64, sw: rw, hw: rw, reset: 0 }

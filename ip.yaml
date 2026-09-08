@@ -1,0 +1,44 @@
+name: aclint
+version: 0.1.0
+spec: "0.1"
+kind: ip
+lang: bsv
+
+identity:
+  slug: aclint-tapeout-bsv
+  display_name: Core-local interrupts and timer
+  summary: CLINT and ACLINT from one module, selected by feature.
+  category: peripheral
+  subcategories: [timer, interrupt]
+  ip_family: clint
+  integration_profile: [apb4-slave]
+  maturity: planned
+
+contract:
+  version: 1
+  ctrl: { shape: flat, aw: 16, dw: 32 }
+  irq:
+    - { name: msip, kind: level }
+    - { name: mtip, kind: level }
+
+params:
+  harts: { type: int, default: 1, range: [1, 8] }
+
+features:
+  ssip: { type: bool, default: false }
+
+area:
+  base: { fixed: 200.0, per: harts, k: 900.0 }
+  model: linear-additive
+  error: { bound: 0.07, sign: over }
+  corner: { tool: ecc, pdk: ics55, freq_mhz: 100, measured: "2026-09-08" }
+
+emit:
+  - kind: bsv
+    package: Aclint
+    module: mkAclint
+    config_type: AclintCfg
+    interface: AclintIfc
+
+deps:
+  hwcore: "^0.1"
