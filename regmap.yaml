@@ -27,3 +27,11 @@ regs:
     atomic: latch-on-low
     fields:
       - { name: val, width: 64, sw: rw, hw: rw, reset: 0 }
+
+  - name: ssip
+    offset: 0xC000
+    desc: supervisor software interrupt pending, one per hart
+    feature: ssip
+    array: { count: harts, stride: 4 }
+    fields:
+      - { name: val, bits: "0:0", sw: rw, hw: r, reset: 0 }
