@@ -44,10 +44,10 @@ features:
     default: false
     area:
       points:
-        '1': -1.12
-        '2': -1.12
-        '4': -1.12
-        '8': -1.12
+        '1': -0.56
+        '2': 161.84
+        '4': 59.64
+        '8': -274.68
       per: harts
 emit:
 - kind: bsv
@@ -67,55 +67,55 @@ deps:
 area:
   base:
     points:
-      '1': 2671.2
-      '2': 4069.8
-      '4': 6615.28
-      '8': 11906.16
+      '1': 2632.0
+      '2': 3972.08
+      '4': 6612.48
+      '8': 11590.32
     per: harts
-  margin: 0.0316
+  margin: 0.046
   model: points-additive
   error:
-    bound: 0.083
+    bound: 0.049
     sign: over
     note: parameter curves stored as measured points, features added on top, then
-      lifted by 0.0316 so that no untested combination predicts under; the worst came
-      in 2.66 percent under before the lift
+      lifted by 0.046 so that no untested combination predicts under; the worst came
+      in 4.10 percent under before the lift
   measured:
   - at:
       harts: 1
       ssip: false
-    um2: 2671.2
+    um2: 2632.0
   - at:
       harts: 2
       ssip: false
-    um2: 4069.8
+    um2: 3972.08
   - at:
       harts: 4
       ssip: false
-    um2: 6615.28
+    um2: 6612.48
   - at:
       harts: 8
       ssip: false
-    um2: 11906.16
+    um2: 11590.32
   - at:
       harts: 1
       ssip: true
-    um2: 2670.08
+    um2: 2631.44
   - at:
       harts: 2
       ssip: true
-    um2: 4068.68
+    um2: 4133.92
   - at:
       harts: 4
       ssip: true
-    um2: 6614.16
+    um2: 6672.12
   - at:
       harts: 8
       ssip: true
-    um2: 11905.04
+    um2: 11315.64
   corner:
     tool: ecc
     pdk: ics55
     freq_mhz: 100
-    measured: '2026-09-08'
-    gen_digest: sha256:f0831d9b6f179ea7
+    measured: '2026-09-09'
+    gen_digest: sha256:c89f4c0d52ecc17c
