@@ -17,8 +17,10 @@ regs:
     desc: machine timer compare, 64 bits, one per hart
     array: { count: harts, stride: 8 }
     width: 64
+    # 规范说复位后 MTIMECMP 处于未定状态，取值随实现。取全 1 是为了让
+    # 「MTIME >= MTIMECMP 就挂起」这条照抄规范也不会一上电就中断。
     fields:
-      - { name: val, width: 64, sw: rw, hw: r, reset: 0 }
+      - { name: val, width: 64, sw: rw, hw: r, reset: 0xFFFFFFFFFFFFFFFF }
 
   - name: mtime
     offset: 0xBFF8
@@ -28,10 +30,13 @@ regs:
     fields:
       - { name: val, width: 64, sw: rw, hw: rw, reset: 0 }
 
-  - name: ssip
+  # SETSSIP 不是「挂起位」而是「置位口」：规范写明最低位**恒读 0**，
+  # 写 0 无效、写 1 送一个边沿给对应的 hart。所以这里 sw 只写不读，
+  # 由 swmod + wrdata 把「这一拍写了谁、写了什么」交给模块去发脉冲。
+  - name: setssip
     offset: 0xC000
-    desc: supervisor software interrupt pending, one per hart
+    desc: set supervisor software interrupt, write one to send an edge
     feature: ssip
     array: { count: harts, stride: 4 }
     fields:
-      - { name: val, bits: "0:0", sw: rw, hw: r, reset: 0 }
+      - { name: val, bits: "0:0", sw: w, hw: na, swmod: true, wrdata: true }

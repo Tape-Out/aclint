@@ -28,8 +28,8 @@ contract:
   - name: mtip
     kind: level
     width: harts
-  - name: ssip
-    kind: level
+  - name: setssip
+    kind: pulse
     width: harts
 params:
   harts:
@@ -44,10 +44,10 @@ features:
     default: false
     area:
       points:
-        '1': -0.56
-        '2': 161.84
-        '4': 59.64
-        '8': -274.68
+        '1': 12.6
+        '2': 76.16
+        '4': 112.56
+        '8': -127.68
       per: harts
 emit:
 - kind: bsv
@@ -67,55 +67,55 @@ deps:
 area:
   base:
     points:
-      '1': 2632.0
-      '2': 3972.08
-      '4': 6612.48
-      '8': 11590.32
+      '1': 2552.2
+      '2': 3834.32
+      '4': 6403.04
+      '8': 11376.96
     per: harts
   margin: 0.046
   model: points-additive
   error:
     bound: 0.049
     sign: over
-    note: parameter curves stored as measured points, features added on top, then
-      lifted by 0.046 so that no untested combination predicts under; the worst came
-      in 4.10 percent under before the lift
+    note: parameter curves stored as measured points, features added on top, 
+      then lifted by 0.046 so that no untested combination predicts under; the 
+      worst came in 4.10 percent under before the lift
   measured:
   - at:
       harts: 1
       ssip: false
-    um2: 2632.0
+    um2: 2552.2
   - at:
       harts: 2
       ssip: false
-    um2: 3972.08
+    um2: 3834.32
   - at:
       harts: 4
       ssip: false
-    um2: 6612.48
+    um2: 6403.04
   - at:
       harts: 8
       ssip: false
-    um2: 11590.32
+    um2: 11376.96
   - at:
       harts: 1
       ssip: true
-    um2: 2631.44
+    um2: 2564.8
   - at:
       harts: 2
       ssip: true
-    um2: 4133.92
+    um2: 3910.48
   - at:
       harts: 4
       ssip: true
-    um2: 6672.12
+    um2: 6515.6
   - at:
       harts: 8
       ssip: true
-    um2: 11315.64
+    um2: 11249.28
   corner:
     tool: ecc
     pdk: ics55
     freq_mhz: 100
-    measured: '2026-09-09'
-    gen_digest: sha256:c89f4c0d52ecc17c
+    measured: '2026-09-10'
+    gen_digest: sha256:6d891b25ea69f241

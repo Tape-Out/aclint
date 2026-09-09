@@ -64,25 +64,70 @@ else:
     msip_second = "      4: noAction;\n      5: noAction;\n"
 
 if ssip:
-    ssip_check = """      6: wr(16'hC000, 1);            // ssip[0]
-      7: action
-           if ((ssipSeen[1] & 1) == 0) begin
-             $display("FAIL ssip is on but the pin stayed low: %02h", ssipSeen[1]);
+    # 规范三条：写 1 送边沿 · 最低位恒读 0 · 写 0 无效。逐条验。
+    # 边沿在模块里打了一拍（见 Aclint.bsv 的 edge_），所以每次写完要空一拍再看。
+    ssip_route = """     13: wr(16'hC004, 1);            // 送给 1 号 hart
+     14: noAction;                   // 等那一拍
+     15: action
+           if (ssipSeen[0] != 2) begin
+             $display("FAIL setssip[1] landed on %02h, want 02", ssipSeen[0]);
              bad <= True;
            end
          endaction
-"""
-    verdict = "time counts, compare fires, software interrupts are per hart"
+""" if second else ""
+    ssip_check = """      6: wr(16'hC000, 1);            // 送一个边沿给 0 号 hart
+      7: noAction;                   // 边沿打了一拍，等它
+      8: action
+           if ((ssipSeen[0] & 1) == 0) begin
+             $display("FAIL setssip[0] was written but no edge came out: %02h",
+                      ssipSeen[0]);
+             bad <= True;
+           end
+           ssipSeen[0] <= 0;           // 清掉记录，后面几步验「不该有边沿」
+         endaction
+      9: action
+           let x <- d.regs.access(RegReq { addr: 16'hC000, write: False,
+                                           wdata: 0, wstrb: 4'hF });
+           if (x.rdata != 0) begin
+             $display("FAIL setssip reads %08h, the spec says it always reads 0",
+                      x.rdata);
+             bad <= True;
+           end
+         endaction
+     10: wr(16'hC000, 0);             // 写 0 无效
+     11: noAction;                   // 同样等一拍，写 0 若送了边沿这时才看得见
+     12: action
+           if (ssipSeen[0] != 0) begin
+             $display("FAIL an edge appeared without a one being written: %02h",
+                      ssipSeen[0]);
+             bad <= True;
+           end
+         endaction
+""" + ssip_route
+    verdict = "time counts, compare fires, software interrupts are per hart, setssip is an edge"
 else:
     ssip_check = """      6: wr(16'hC000, 1);            // ssip 关着，写了也不该有反应
       7: action
-           if (ssipSeen[1] != 0) begin
-             $display("FAIL ssip is off but the pin went high: %02h", ssipSeen[1]);
+           if (ssipSeen[0] != 0) begin
+             $display("FAIL ssip is off but the pin went high: %02h", ssipSeen[0]);
              bad <= True;
            end
          endaction
 """
     verdict = "time counts, compare fires, and the ssip gate really gates"
+
+# 门限写 0：规范只说「MTIME >= MTIMECMP 就挂起」，没有「等于 0 当永不」这一条。
+# 这一段能把那个多出来的条件抓出来——加了它，写 0 之后中断反而会掉。
+cmp0_check = """     16: wr(16'h4000, 0);            // mtimecmp[0] 低字写 0
+     17: wr(16'h4004, 0);            // 高字也写 0
+     18: action
+           if ((mtipSeen[1] & 1) == 0) begin
+             $display("FAIL mtimecmp is 0 and mtime has run, yet mtip is low: %02h",
+                      mtipSeen[1]);
+             bad <= True;
+           end
+         endaction
+"""
 
 txt = f'''package Aclint{label}Tb;
 
@@ -119,7 +164,14 @@ module mkAclint{label}Tb(Empty);
     d.pins.tick(tck);
     mtipSeen[0] <= d.mtip;
     msipSeen[0] <= d.msip;
-    ssipSeen[0] <= d.ssip;
+  endrule
+
+  // 边沿是「写总线的那一拍」才有的，所以累积不能和采样电平放同一条规则：
+  // 采样电平要排在检查之前（检查读的是这一拍采到的），
+  // 累积边沿要排在检查之后（边沿正是检查那条规则写出来的）。
+  // 端口也跟着分：检查用 0，累积用 1。
+  rule sswi;
+    ssipSeen[1] <= ssipSeen[1] | d.setssip;
   endrule
 
   rule tick_;
@@ -168,9 +220,9 @@ module mkAclint{label}Tb(Empty);
              bad <= True;
            end
          endaction
-{msip_second}{ssip_check}      default: ph <= Done;
+{msip_second}{ssip_check}{cmp0_check}      default: ph <= Done;
     endcase
-    if (s < 8) s <= s + 1; else s <= 0;
+    if (s < 25) s <= s + 1; else s <= 0;
   endrule
 
   rule fin (ph == Done);
