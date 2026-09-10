@@ -137,7 +137,7 @@ import Aclint::*;
 
 // 由 tb/mkaclinttb.py 生成，勿手改。这一点：harts={harts} ssip={ssip}
 
-typedef enum {{ Setup, CheckArr, WaitTip, Msip, Done }}
+typedef enum {{ Setup, CheckArr, WaitTip, Msip, Torn, CheckTorn, Done }}
   Phase deriving (Bits, Eq);
 
 (* synthesize *)
@@ -155,6 +155,14 @@ module mkAclint{label}Tb(Empty);
   Reg#(Bit#({harts})) mtipSeen[2] <- mkCReg(2, 0);
   Reg#(Bit#({harts})) msipSeen[2] <- mkCReg(2, 0);
   Reg#(Bit#({harts})) ssipSeen[2] <- mkCReg(2, 0);
+  // 六十四位寄存器挂在三十二位总线上，读要分两次。regmap 给 mtime 标了
+  // atomic: latch-on-low——读低字时把高字锁进影子，读高字返回影子。
+  // 这四个存的就是两轮「先低后高」读回来的值。
+  Reg#(Bit#(8))  t   <- mkReg(0);   // 撕裂那一段自己的步数，别跟 s 抢
+  Reg#(Bit#(32)) lo1 <- mkReg(0);
+  Reg#(Bit#(32)) hi1 <- mkReg(0);
+  Reg#(Bit#(32)) lo2 <- mkReg(0);
+  Reg#(Bit#(32)) hi2 <- mkReg(0);
 
   rule pins;
     // 时基慢于核心时钟：四拍翻一次，八拍一个上升沿
@@ -220,9 +228,64 @@ module mkAclint{label}Tb(Empty);
              bad <= True;
            end
          endaction
-{msip_second}{ssip_check}{cmp0_check}      default: ph <= Done;
+{msip_second}{ssip_check}{cmp0_check}      default: ph <= Torn;
     endcase
     if (s < 25) s <= s + 1; else s <= 0;
+  endrule
+
+  // 六十四位的时间计数器读要分两次，而它一直在走。低字读到 0xFFFFFFFE、
+  // 高字读到 1，拼出来的是一个**从未存在过的时刻**——差了整整 2^32 个 tick。
+  // 影子的作用就是让这一对永远自洽。这条此前一次都没被验过。
+  rule torn (ph == Torn);
+    case (t)
+      0:  wr(16'hBFFC, 0);                 // mtime 高字清零
+      1:  wr(16'hBFF8, 32'hFFFFFFFD);      // 低字停在边界前三格
+      2:  action
+            let x <- d.regs.access(RegReq {{ addr: 16'hBFF8, write: False,
+                                             wdata: 0, wstrb: 4'hF }});
+            lo1 <= x.rdata;                // 这一读把高字锁进影子
+          endaction
+      50: action                           // 中间过了六个 tick，计数已经跨过边界
+            let x <- d.regs.access(RegReq {{ addr: 16'hBFFC, write: False,
+                                             wdata: 0, wstrb: 4'hF }});
+            hi1 <= x.rdata;
+          endaction
+      52: action                           // 再读一轮：影子该跟上了
+            let x <- d.regs.access(RegReq {{ addr: 16'hBFF8, write: False,
+                                             wdata: 0, wstrb: 4'hF }});
+            lo2 <= x.rdata;
+          endaction
+      54: action
+            let x <- d.regs.access(RegReq {{ addr: 16'hBFFC, write: False,
+                                             wdata: 0, wstrb: 4'hF }});
+            hi2 <= x.rdata;
+          endaction
+      default: noAction;
+    endcase
+    if (t > 56) ph <= CheckTorn;
+    else t <= t + 1;
+  endrule
+
+  rule checkTorn (ph == CheckTorn);
+    Bool wrong = False;
+    if (lo1 < 32'hFFFFFFFD) begin
+      $display("FAIL the low word read back %08h, the counter never got near the edge",
+               lo1);
+      wrong = True;
+    end
+    if (hi1 != 0) begin
+      $display("FAIL a 64 bit read tore: low %08h then high %08h, a moment that never was",
+               lo1, hi1);
+      wrong = True;
+    end
+    // 反过来也要验：影子若是永远还旧值，上面那条照样过
+    if (hi2 != 1) begin
+      $display("FAIL the shadow never moved on: second pair reads %08h %08h",
+               lo2, hi2);
+      wrong = True;
+    end
+    if (wrong) bad <= True;
+    ph <= Done;
   endrule
 
   rule fin (ph == Done);
