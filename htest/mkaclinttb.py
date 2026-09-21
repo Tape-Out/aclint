@@ -135,7 +135,7 @@ import Vector::*;
 import RegIf::*;
 import Aclint::*;
 
-// 由 tb/mkaclinttb.py 生成，勿手改。这一点：harts={harts} ssip={ssip}
+// 由 htest/mkaclinttb.py 生成，勿手改。这一点：harts={harts} ssip={ssip}
 
 typedef enum {{ Setup, CheckArr, WaitTip, Msip, Torn, CheckTorn, Done }}
   Phase deriving (Bits, Eq);
